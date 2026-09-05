@@ -1,0 +1,44 @@
+"""Feature controls and display metadata for the dashboard."""
+import streamlit as st
+
+from config import CATEGORICAL_OPTIONS, NUMERIC_INPUTS
+
+FEATURE_LABELS = {
+    "Geology_Type": "Geology type", "Land_Use": "Land use", "Elevation_m": "Elevation",
+    "Slope_Angle": "Slope angle", "Soil_Erosion_Rate": "Soil erosion rate",
+    "Vegetation_Cover": "Vegetation cover", "Rainfall_3Day": "Rainfall (3 day)",
+    "Effective_Rainfall_mm": "Effective rainfall", "Soil_Saturation": "Soil saturation",
+    "Pore_Pressure_Ratio": "Pore pressure ratio", "Seismic_PGA_g": "Seismic PGA",
+}
+
+CONTROL_GROUPS = (
+    ("Site", ("Geology_Type", "Land_Use", "Elevation_m")),
+    ("Terrain", ("Slope_Angle", "Soil_Erosion_Rate", "Vegetation_Cover")),
+    ("Hydrology", ("Rainfall_3Day", "Effective_Rainfall_mm", "Soil_Saturation", "Pore_Pressure_Ratio")),
+    ("Seismic", ("Seismic_PGA_g",)),
+)
+
+def _label(feature: str) -> str:
+    return FEATURE_LABELS[feature]
+
+def _render_control(feature: str, column) -> tuple[str, object]:
+    with column:
+        if feature in CATEGORICAL_OPTIONS:
+            return feature, st.selectbox(_label(feature), CATEGORICAL_OPTIONS[feature], key=f"input_{feature}")
+        low, high, default, step, unit, number_format = NUMERIC_INPUTS[feature]
+        label = f"{_label(feature)} ({unit})" if unit else _label(feature)
+        return feature, st.slider(label, low, high, default, step, format=number_format, key=f"input_{feature}")
+
+def collect_inputs() -> dict:
+    """Render a balanced two-column control panel with compact logical groups."""
+    values = {}
+    left, right = st.columns(2, gap="large")
+    for group_index, (group_name, features) in enumerate(CONTROL_GROUPS):
+        parent = left if group_index < 2 else right
+        with parent:
+            st.markdown(f'<div class="input-group-title">{group_name}</div>', unsafe_allow_html=True)
+            rows = st.columns(2, gap="medium")
+            for index, feature in enumerate(features):
+                name, value = _render_control(feature, rows[index % 2])
+                values[name] = value
+    return values
