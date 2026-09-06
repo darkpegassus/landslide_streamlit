@@ -13,7 +13,7 @@ from ui import (
     render_history, 
     render_prediction, 
     render_system_information,
-    render_interactive_map 
+    render_interactive_map  # <--- New import
 )
 
 st.set_page_config(page_title="Landslide Risk Predictor", page_icon="src/icons/neural.png", layout="wide", initial_sidebar_state="collapsed")
