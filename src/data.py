@@ -35,8 +35,7 @@ def _render_control(feature: str, column) -> tuple[str, object]:
         return feature, st.slider(label, low, high, default, step, format=number_format, key=f"input_{feature}")
 
 
-def collect_inputs() -> dict:
-    """Render a balanced two-column control panel with compact logical groups."""
+def collect_inputs(defaults: dict = None) -> dict:
     values = {}
     left, right = st.columns(2, gap="large")
     for group_index, (group_name, features) in enumerate(CONTROL_GROUPS):
@@ -45,6 +44,20 @@ def collect_inputs() -> dict:
             st.markdown(f'<div class="input-group-title">{group_name}</div>', unsafe_allow_html=True)
             rows = st.columns(2, gap="medium")
             for index, feature in enumerate(features):
-                name, value = _render_control(feature, rows[index % 2])
-                values[name] = value
+                with rows[index % 2]:
+                    # Determine default value
+                    d_val = defaults.get(feature) if defaults else None
+                    
+                    if feature == "Latitude":
+                        values[feature] = st.slider("Latitude", 6.0, 38.0, d_val or 20.59, 0.01, key="input_lat")
+                    elif feature == "Longitude":
+                        values[feature] = st.slider("Longitude", 68.0, 98.0, d_val or 78.96, 0.01, key="input_lon")
+                    elif feature in CATEGORICAL_OPTIONS:
+                        opts = CATEGORICAL_OPTIONS[feature]
+                        idx = opts.index(d_val) if d_val in opts else 0
+                        values[feature] = st.selectbox(_label(feature), opts, index=idx, key=f"input_{feature}")
+                    else:
+                        low, high, default, step, unit, number_format = NUMERIC_INPUTS[feature]
+                        label = f"{_label(feature)} ({unit})" if unit else _label(feature)
+                        values[feature] = st.slider(label, float(low), float(high), float(d_val if d_val is not None else default), float(step), format=number_format, key=f"input_{feature}")
     return values

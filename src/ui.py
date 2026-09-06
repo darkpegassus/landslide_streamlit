@@ -1,6 +1,6 @@
 """Theme-aware visual components for the landslide dashboard."""
 from __future__ import annotations
-
+from config import MONITORING_STATIONS
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -10,7 +10,9 @@ FEATURE_NAMES = {"numerical__Slope_Angle": "Slope angle", "numerical__Vegetation
 
 
 def theme(dark: bool) -> dict[str, str]:
-    return ({"text": "#f4e8dc", "muted": "#cbb8aa", "accent": "#f0954f", "grid": "rgba(240,149,79,.24)", "plot": "rgba(16,10,8,.48)", "bar": "#e98945", "marker": "#ffc08d"} if dark else {"text": "#3f3656", "muted": "#655d7c", "accent": "#9a86dd", "grid": "rgba(113,94,165,.18)", "plot": "rgba(235,229,250,.82)", "bar": "#8d7ddd", "marker": "#f18da2"})
+    return ({"text": "#f4e8dc", "muted": "#cbb8aa", "accent": "#f0954f", "grid": "rgba(240,149,79,.24)", "plot": "rgba(16,10,8,.48)", "bar": "#e98945", "marker": "#ffc08d"} 
+            if dark else 
+            {"text": "#1a1625", "muted": "#4a4458", "accent": "#42327d", "grid": "rgba(36,27,66,0.1)", "plot": "rgba(235,229,250,0.5)", "bar": "#5c49a0", "marker": "#b03a5c"})
 
 
 def inject_styles(dark: bool) -> None:
@@ -29,12 +31,12 @@ def inject_styles(dark: bool) -> None:
             "linear-gradient(180deg, #fffdfb 0%, #faf8ff 44%, #f4fcfc 100%)"
         ),
         "CARD": "linear-gradient(145deg, rgba(23, 20, 19, 0.88), rgba(7, 7, 7, 0.82))" if dark else "linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(255, 252, 254, 0.58))",
-        "CARD_BORDER": "#f0954f" if dark else "#241b42",
+        "METRIC": "rgba(85,39,21,0.48)" if dark else "rgba(210,200,250,0.4)", # Darker boxes in light mode
+        "CARD_BORDER": "#f0954f" if dark else "#8d7ddd", # Clearer borders in light mode
         "TEXT": c["text"], 
         "MUTED": c["muted"], 
         "ACCENT": c["accent"], 
         "GRID": c["grid"], 
-        "METRIC": "rgba(85,39,21,.48)" if dark else "rgba(238,232,255,.72)",
         "GLOW": "rgba(255,166,93,.22)" if dark else "rgba(255,255,255,.80)", 
         "HOVER": "#ffb066" if dark else "#6f5aa8", 
         "SHADOW": "0 28px 42px rgba(196,92,24,.34), 0 10px 22px rgba(240,138,60,.30)" if dark else "0 28px 42px rgba(124,108,173,.28), 0 10px 22px rgba(255,174,194,.22)",
@@ -105,25 +107,32 @@ def inject_styles(dark: bool) -> None:
             box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
         }
         
+        /* 1. BROAD SELECTOR FOR 3D EFFECT */
         div[class*="st-key-current-parameters"],
         div[class*="st-key-prediction-result"],
-        div[class*="st-key-feature-importance"],
-        div[class*="st-key-system-information"],
+        div[class*="st-key-feature-importance"],      /* Restored */
+        div[class*="st-key-system-information"],       /* Restored */
         div[class*="st-key-current-profile"],
-        div[class*="st-key-prediction-history"] {
+        div[class*="st-key-live-history-trend"],
+        div[class*="st-key-user-sim-history"] {
             transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
             transform: perspective(950px) translateZ(0);
         }
         
+        /* 2. HOVER SELECTOR */
         div[class*="st-key-current-parameters"]:hover,
         div[class*="st-key-prediction-result"]:hover,
-        div[class*="st-key-feature-importance"]:hover,
-        div[class*="st-key-system-information"]:hover,
+        div[class*="st-key-feature-importance"]:hover, /* Restored */
+        div[class*="st-key-system-information"]:hover,  /* Restored */
         div[class*="st-key-current-profile"]:hover,
-        div[class*="st-key-prediction-history"]:hover {
+        div[class*="st-key-live-history-trend"]:hover,
+        div[class*="st-key-user-sim-history"]:hover {
             border-color: __HOVER__ !important;
             transform: translateY(-6px) perspective(950px) rotateX(2deg) rotateY(-0.8deg);
             box-shadow: __SHADOW__;
+        }
+        div[data-testid="stNotification"] p {
+            color: inherit !important;
         }
         
         .hero {
@@ -350,7 +359,6 @@ def inject_styles(dark: bool) -> None:
 def inject_cursor_glow() -> None:
     components.html('''<script>(()=>{const d=window.parent.document,r=d.documentElement;if(r.__landslideGlow)d.removeEventListener("mousemove",r.__landslideGlow);r.__landslideGlow=e=>{r.style.setProperty("--cursor-x",e.clientX+"px");r.style.setProperty("--cursor-y",e.clientY+"px")};d.addEventListener("mousemove",r.__landslideGlow,{passive:true})})()</script>''', height=0)
 
-
 def risk_bucket(probability: float) -> tuple[str, str, str]:
     if probability < .34:
         return "Low risk", "risk-low", "#4caf7d"
@@ -481,11 +489,15 @@ def render_current_profile(values: dict, numeric_inputs: dict, dark: bool) -> No
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 
-def render_history(history: pd.DataFrame, threshold: float, dark: bool) -> None:
+def render_history(history: pd.DataFrame, threshold: float, dark: bool, key: str = "prediction-history") -> None:
     c = theme(dark)
     count = len(history)
+    line_color = c["bar"]
+    marker_color = "#ffffff" if dark else "#241b42"
+    text_color = c["text"]
+    grid_color = c["grid"]
     
-    with st.container(border=True, key="prediction-history"):
+    with st.container(border=True, key=key):
         st.markdown('<div class="section-title prediction-history-title">Prediction History</div>', unsafe_allow_html=True)
         
         if count == 1:
@@ -513,57 +525,66 @@ def render_history(history: pd.DataFrame, threshold: float, dark: bool) -> None:
             
         layout.update(
             margin=dict(l=35, r=15, t=10, b=30),
-            yaxis=dict(range=[0, 100], ticksuffix="%", showgrid=True, gridcolor=c["grid"]),
+            yaxis=dict(
+                range=[0, 100], 
+                ticksuffix="%", 
+                showgrid=True, 
+                gridcolor=grid_color,
+                tickfont=dict(color=text_color) # Darker ticks
+            ),
+            xaxis=dict(
+                tickfont=dict(color=text_color) # Darker ticks
+            ),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor=c["plot"],
-            font={"color": c["text"]}
+            font={"color": text_color} # Darker global font
         )
         fig.update_layout(**layout)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 
-def render_interactive_map(lat: float, lon: float, dark: bool) -> None:
-    """Renders a 2D interactive physical map of India with zoom/pan support."""
+def render_interactive_map(selected_station: str, dark: bool):
     c = theme(dark)
-    
-    # Version compatibility check (Plotly 6.0+ vs Older)
-    if hasattr(go, "Scattermap"):
-        trace_type = go.Scattermap
-        layout_key = "map"
-    else:
-        trace_type = go.Scattermapbox
-        layout_key = "mapbox"
+    is_v6 = hasattr(go, "Scattermap")
+    trace_type = go.Scattermap if is_v6 else go.Scattermapbox
+    layout_key = "map" if is_v6 else "mapbox"
+
+    # Create lists for all stations
+    lats, lons, names, colors, sizes = [], [], [], [], []
+    for k, v in MONITORING_STATIONS.items():
+        lats.append(v['lat'])
+        lons.append(v['lon'])
+        names.append(k)
+        if k == selected_station:
+            colors.append("#00f2ff" if dark else "#2a00ff") # Highlight
+            sizes.append(24)
+        else:
+            colors.append("#bb0016" if v['risk'] in ["Extreme", "High"] else "#00ca1b")
+            sizes.append(15)
 
     fig = go.Figure(trace_type(
-        lat=[lat],
-        lon=[lon],
-        mode='markers',
-        marker=dict(size=22, color=c["accent"], opacity=0.9),
-        text=["Current Site Location"],
-        hoverinfo="text"
+        lat=lats, lon=lons, mode='markers',
+        marker=dict(size=sizes, color=colors, opacity=0.9),
+        text=names, hoverinfo="text", customdata=names
     ))
 
-    # Using USGS Terrain tiles for a "Physical" look (High detail for India)
     fig.update_layout(
         **{layout_key: dict(
             style="white-bg",
-            layers=[{
-                "below": 'traces',
-                "sourcetype": "raster",
-                "source": [
-                    "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}"
-                ]
-            }],
-            center=dict(lat=lat, lon=lon),
-            zoom=4 if lat == 20.59 else 7, # Zoom in automatically if user moves pin
+            layers=[{"below": 'traces', "sourcetype": "raster", "source": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}"]}],
+            center=dict(lat=MONITORING_STATIONS[selected_station]['lat'], lon=MONITORING_STATIONS[selected_station]['lon']),
+            zoom=4 if selected_station == "Kedarnath, UT" else 6
         )},
-        margin={"r":0,"t":0,"l":0,"b":0},
-        height=420,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        margin={"r":0,"t":0,"l":0,"b":0}, height=450, paper_bgcolor="rgba(0,0,0,0)",
     )
 
-    with st.container(border=True, key="physical-map-container"):
-        st.markdown('<div class="section-title">Physical Site Locator</div>', unsafe_allow_html=True)
-        st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': False})
-        st.caption("2D Interactive Terrain Map: Scroll to zoom, click and drag to move.")
+    with st.container(border=True):
+        st.markdown('<div class="section-title">Physical Network Status</div>', unsafe_allow_html=True)
+        # on_select requires streamlit >= 1.35
+        evt = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="map_selection", config={'displayModeBar': False})
+        
+        # Handle selection
+        if evt and "selection" in evt and "point_indices" in evt["selection"] and evt["selection"]["point_indices"]:
+            idx = evt["selection"]["point_indices"][0]
+            return names[idx]
+    return selected_station
