@@ -12,10 +12,11 @@ FEATURE_LABELS = {
 }
 
 CONTROL_GROUPS = (
-    ("Site", ("Geology_Type", "Land_Use", "Elevation_m")),
+    ("Site Location", ("Latitude", "Longitude")),
+    ("Site Characteristics", ("Geology_Type", "Land_Use", "Elevation_m")),
+    ("Seismic", ("Seismic_PGA_g",)),
     ("Terrain", ("Slope_Angle", "Soil_Erosion_Rate", "Vegetation_Cover")),
     ("Hydrology", ("Rainfall_3Day", "Effective_Rainfall_mm", "Soil_Saturation", "Pore_Pressure_Ratio")),
-    ("Seismic", ("Seismic_PGA_g",)),
 )
 
 def _label(feature: str) -> str:
@@ -23,18 +24,23 @@ def _label(feature: str) -> str:
 
 def _render_control(feature: str, column) -> tuple[str, object]:
     with column:
+        if feature == "Latitude":
+            return feature, st.slider("Latitude", 6.0, 38.0, 20.59, 0.01, key="input_lat")
+        if feature == "Longitude":
+            return feature, st.slider("Longitude", 68.0, 98.0, 78.96, 0.01, key="input_lon")
         if feature in CATEGORICAL_OPTIONS:
             return feature, st.selectbox(_label(feature), CATEGORICAL_OPTIONS[feature], key=f"input_{feature}")
         low, high, default, step, unit, number_format = NUMERIC_INPUTS[feature]
         label = f"{_label(feature)} ({unit})" if unit else _label(feature)
         return feature, st.slider(label, low, high, default, step, format=number_format, key=f"input_{feature}")
 
+
 def collect_inputs() -> dict:
     """Render a balanced two-column control panel with compact logical groups."""
     values = {}
     left, right = st.columns(2, gap="large")
     for group_index, (group_name, features) in enumerate(CONTROL_GROUPS):
-        parent = left if group_index < 2 else right
+        parent = left if group_index < 3 else right
         with parent:
             st.markdown(f'<div class="input-group-title">{group_name}</div>', unsafe_allow_html=True)
             rows = st.columns(2, gap="medium")

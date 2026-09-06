@@ -193,7 +193,7 @@ def inject_styles(dark: bool) -> None:
         
         /* Dynamic Primary Button Styling */
         .stButton > button {
-            min-height: 2.6rem;
+            min-height: 3rem;
             border: 0;
             border-radius: 999px;
             background: __BTN_BG__;
@@ -225,9 +225,9 @@ def inject_styles(dark: bool) -> None:
         }
         
         div[class*="st-key-theme-toggle-container"] button {
-            width: 100%;
+            width: 84%;
             font-size: 0.01rem;
-            min-height: 2.4rem;
+            min-height: 1.8rem;
             padding: 0.15rem 0.6rem;
             border: 1.5px solid __SWITCH_BORDER__ ;
             border-radius: 999px;
@@ -520,3 +520,50 @@ def render_history(history: pd.DataFrame, threshold: float, dark: bool) -> None:
         )
         fig.update_layout(**layout)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
+def render_interactive_map(lat: float, lon: float, dark: bool) -> None:
+    """Renders a 2D interactive physical map of India with zoom/pan support."""
+    c = theme(dark)
+    
+    # Version compatibility check (Plotly 6.0+ vs Older)
+    if hasattr(go, "Scattermap"):
+        trace_type = go.Scattermap
+        layout_key = "map"
+    else:
+        trace_type = go.Scattermapbox
+        layout_key = "mapbox"
+
+    fig = go.Figure(trace_type(
+        lat=[lat],
+        lon=[lon],
+        mode='markers',
+        marker=dict(size=22, color=c["accent"], opacity=0.9),
+        text=["Current Site Location"],
+        hoverinfo="text"
+    ))
+
+    # Using USGS Terrain tiles for a "Physical" look (High detail for India)
+    fig.update_layout(
+        **{layout_key: dict(
+            style="white-bg",
+            layers=[{
+                "below": 'traces',
+                "sourcetype": "raster",
+                "source": [
+                    "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}"
+                ]
+            }],
+            center=dict(lat=lat, lon=lon),
+            zoom=4 if lat == 20.59 else 7, # Zoom in automatically if user moves pin
+        )},
+        margin={"r":0,"t":0,"l":0,"b":0},
+        height=420,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+
+    with st.container(border=True, key="physical-map-container"):
+        st.markdown('<div class="section-title">Physical Site Locator</div>', unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': False})
+        st.caption("2D Interactive Terrain Map: Scroll to zoom, click and drag to move.")
