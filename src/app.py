@@ -28,14 +28,33 @@ def get_station_data(name):
     rows = []
     for i in range(6):
         row = base.copy()
+        # Add temporal noise/trend
         trend = (i * 0.02) if MONITORING_STATIONS[name]["risk"] in ["Extreme", "High"] else 0
+        
         for k, v in row.items():
-            if isinstance(v, (int, float)) and k not in ["Elevation_m", "Slope_Angle"]:
-                # Ensuring result is float
-                row[k] = float(v * (1.0 + trend + np.random.normal(0, 0.02)))
-            elif k in ["Elevation_m", "Slope_Angle"]:
-                # Ensure even static numbers are floats
-                row[k] = float(v)
+            # Check if it's a numeric feature defined in our config
+            if k in NUMERIC_INPUTS:
+                low_limit, high_limit = NUMERIC_INPUTS[k][0], NUMERIC_INPUTS[k][1]
+                
+                # Apply noise and trend
+                raw_val = float(v * (1.0 + trend + np.random.normal(0, 0.02)))
+                
+                # CRITICAL: Clip the value so it never exceeds the slider's max/min
+                row[k] = float(np.clip(raw_val, low_limit, high_limit))
+            
+            # Special handling for coordinates (Latitude/Longitude)
+            elif k == "Latitude":
+                row[k] = float(np.clip(v, 6.0, 38.0))
+            elif k == "Longitude":
+                row[k] = float(np.clip(v, 68.0, 98.0))
+            else:
+                # For categorical strings, just keep as is
+                row[k] = v
+            # After generating Rainfall and Vegetation, update Effective Rainfall
+            row["Effective_Rainfall_mm"] = float(row["Rainfall_3Day"] * row["Vegetation_Cover"])
+            # Ensure it stays within range limits if necessary
+            row["Effective_Rainfall_mm"] = float(np.clip(row["Effective_Rainfall_mm"], 0, 500))    
+
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -71,17 +90,38 @@ with st.container(border=True, key="current-parameters"):
     latest_live = live_df.iloc[-1].to_dict()
 
     with map_col:
-        # Map interaction: updates selection on click
+        # Render map and catch selection
         new_site = render_interactive_map(st.session_state.selected_station, dark)
+        # Check if the station actually changed
         if new_site != st.session_state.selected_station:
+            # 1. Update the station name
             st.session_state.selected_station = new_site
+            # 2. Generate the fresh live data for the NEW station
+            new_live_df = get_station_data(new_site)
+            new_latest_live = new_live_df.iloc[-1].to_dict()
+            # 3. CRITICAL: Manually update the widget session state keys
+            # This forces the sliders to jump to the new values
+            for feature, value in new_latest_live.items():
+                # Handle the specific keys used in data.py
+                if feature == "Latitude":
+                    key = "input_lat"
+                elif feature == "Longitude":
+                    key = "input_lon"
+                else:
+                    key = f"input_{feature}"
+                # Force the value into session state (cast numbers to float for sliders)
+                if isinstance(value, (int, float)):
+                    st.session_state[key] = float(value)
+                else:
+                    st.session_state[key] = value
+            # 4. Rerun the app to reflect the new slider positions
             st.rerun()
 
     with in_col:
         st.caption(f"Station: {st.session_state.selected_station} | Status: {MONITORING_STATIONS[st.session_state.selected_station]['risk']} Risk")
         # 2. Sliders now accept live data as defaults
         values = collect_inputs(defaults=latest_live)
-        
+        values["Effective_Rainfall_mm"] = float(values["Rainfall_3Day"] * values["Vegetation_Cover"])
         # 3. Check if user changed anything
         is_sim = any(values[k] != latest_live[k] for k in latest_live if k in values)
         

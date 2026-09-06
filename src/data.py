@@ -16,7 +16,7 @@ CONTROL_GROUPS = (
     ("Site Characteristics", ("Geology_Type", "Land_Use", "Elevation_m")),
     ("Seismic", ("Seismic_PGA_g",)),
     ("Terrain", ("Slope_Angle", "Soil_Erosion_Rate", "Vegetation_Cover")),
-    ("Hydrology", ("Rainfall_3Day", "Effective_Rainfall_mm", "Soil_Saturation", "Pore_Pressure_Ratio")),
+    ("Hydrology", ("Rainfall_3Day", "Soil_Saturation", "Pore_Pressure_Ratio")), 
 )
 
 def _label(feature: str) -> str:
