@@ -4,7 +4,7 @@ import streamlit as st
 from config import NUMERIC_INPUTS
 from data import collect_inputs
 from model import load_model, predict, top_feature_importance
-# Added 'render_interactive_map' to the import list
+
 from ui import (
     inject_cursor_glow, 
     inject_styles, 
@@ -13,7 +13,7 @@ from ui import (
     render_history, 
     render_prediction, 
     render_system_information,
-    render_interactive_map  # <--- New import
+    render_interactive_map  
 )
 
 st.set_page_config(page_title="Landslide Risk Predictor", page_icon="src/icons/neural.png", layout="wide", initial_sidebar_state="collapsed")
