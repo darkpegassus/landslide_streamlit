@@ -78,7 +78,7 @@ inject_styles(dark)
 inject_cursor_glow()
 
 st.markdown(
-    '<div class="hero"><h1>GeoSentinal - Landslide Risk Assessment System</h1>'
+    '<div class="hero"><h1>GeoSentinel - Landslide Risk Assessment System</h1>'
     '<p>AI-Powered Early Warning & Continuous Telemetry System for the North Eastern Region.</p></div>',
     unsafe_allow_html=True
 )
