@@ -274,7 +274,7 @@ def inject_styles(dark: bool) -> None:
             min-height: 178px;
             flex-direction: column;
             justify-content: center;
-            padding: 1.1rem 1.25rem;
+            padding: 0.8rem 1.05rem;
             border-radius: 18px;
         }
         
@@ -294,12 +294,12 @@ def inject_styles(dark: bool) -> None:
         }
         
         .risk-summary .risk-name {
-            font: 800 2rem/1 'Barlow Condensed', sans-serif;
+            font: 800 1.65rem/1 'Barlow Condensed', sans-serif;
         }
         
         .risk-summary .risk-number {
             margin: 0.35rem 0 0.05rem;
-            font-size: 2.3rem;
+            font-size: 2.05rem;
             font-weight: 800;
         }
         
@@ -310,8 +310,8 @@ def inject_styles(dark: bool) -> None:
         
         .decision-pill {
             display: inline-block;
-            margin-top: 0.8rem;
-            padding: 0.3rem 0.55rem;
+            margin-top: 0.45rem;
+            padding: 0.25rem 0.55rem;
             border-radius: 999px;
             background: rgba(0, 0, 0, 0.12);
             font-size: 0.74rem;
@@ -398,7 +398,7 @@ def render_prediction(probability: float, threshold: float, dark: bool, active_s
     with st.container(border=True, key="prediction-result"):
         st.markdown('<div class="section-title">Incident Command Center & Threat Assessment</div>', unsafe_allow_html=True)
         
-        col_summary, col_gauge, col_matrix = st.columns([0.85, 1.05, 1.3], gap="medium")
+        col_summary, col_gauge, col_matrix = st.columns([0.85, 1.05, 1.25], gap="medium")
         
         # 1. Left: Risk Summary Card
         with col_summary:
@@ -417,7 +417,7 @@ def render_prediction(probability: float, threshold: float, dark: bool, active_s
             fig = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=probability * 100,
-                number={"suffix": "%", "font": {"size": 30, "color": c["text"]}},
+                number={"suffix": "%", "font": {"size": 45, "color": c["text"]}},
                 gauge={
                     "shape": "angular",
                     "axis": {"range": [0, 100], "tickcolor": c["text"], "tickfont": {"color": c["muted"], "size": 10}},
