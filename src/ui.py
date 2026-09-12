@@ -569,7 +569,7 @@ def render_system_information(metadata: dict, threshold: float, dark: bool) -> N
         st.markdown(
             f'<div class="metric-grid">'
             f'<div class="metric"><span>Model</span><b>{metadata.get("model_name")}</b></div>'
-            f'<div class="metric"><span>Features</span><b>{len(metadata.get("features") or [])}</b></div>'
+            f'<div class="metric"><span>Features</span><b>{len(metadata.get("features") or [])-1}</b></div>'
             f'<div class="metric"><span>Decision threshold</span><b>{threshold:.2f}</b></div>'
             f'<div class="metric"><span>CV F1</span><b>{cv_f1:.4f}</b></div>'
             f'</div>',
