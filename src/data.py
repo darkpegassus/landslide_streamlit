@@ -34,11 +34,12 @@ def _label(feature: str) -> str:
 
 def collect_inputs(defaults: dict | None = None) -> dict:
     """
-    Renders input controls. Automatically respects defaults when switching 
-    stations or toggling the Open-Meteo satellite feed.
+    Renders input controls. Uses dynamic version keys so station switching
+    and 'Reset to Live' refresh instantly without Streamlit state crashes.
     """
     values = {}
     defaults = defaults or {}
+    v = st.session_state.get("input_version", 0)
     left, right = st.columns(2, gap="large")
     
     for group_index, (group_name, features) in enumerate(CONTROL_GROUPS):
@@ -49,25 +50,22 @@ def collect_inputs(defaults: dict | None = None) -> dict:
             
             for index, feature in enumerate(features):
                 with rows[index % 2]:
-                    state_key = "input_lat" if feature == "Latitude" else ("input_lon" if feature == "Longitude" else f"input_{feature}")
-                    
                     if feature == "Latitude":
-                        val = float(defaults.get("Latitude", st.session_state.get(state_key, 23.73)))
-                        values[feature] = st.slider("Latitude (°N)", 6.0, 38.0, val, 0.01, format="%.2f", key="input_lat")
+                        val = float(defaults.get("Latitude", 23.73))
+                        values[feature] = st.slider("Latitude (°N)", 6.0, 38.0, val, 0.01, format="%.2f", key=f"input_lat_{v}")
                     elif feature == "Longitude":
-                        val = float(defaults.get("Longitude", st.session_state.get(state_key, 92.71)))
-                        values[feature] = st.slider("Longitude (°E)", 68.0, 98.0, val, 0.01, format="%.2f", key="input_lon")
+                        val = float(defaults.get("Longitude", 92.71))
+                        values[feature] = st.slider("Longitude (°E)", 68.0, 98.0, val, 0.01, format="%.2f", key=f"input_lon_{v}")
                     elif feature in CATEGORICAL_OPTIONS:
                         opts = CATEGORICAL_OPTIONS[feature]
                         default_cat = defaults.get(feature, opts[0])
                         idx = opts.index(default_cat) if default_cat in opts else 0
-                        values[feature] = st.selectbox(_label(feature), opts, index=idx, key=f"input_{feature}")
+                        values[feature] = st.selectbox(_label(feature), opts, index=idx, key=f"input_{feature}_{v}")
                     elif feature in NUMERIC_INPUTS:
                         low, high, fallback, step, unit, number_format = NUMERIC_INPUTS[feature]
                         label = f"{_label(feature)} ({unit})" if unit else _label(feature)
-                        val = float(defaults.get(feature, st.session_state.get(state_key, fallback)))
-                        # Safety clamp inside slider bounds
-                        val = float(np.clip(val, low, high))
+                        raw_val = float(defaults.get(feature, fallback))
+                        val = float(np.clip(raw_val, low, high))
                         values[feature] = st.slider(
                             label, 
                             float(low), 
@@ -75,7 +73,7 @@ def collect_inputs(defaults: dict | None = None) -> dict:
                             val, 
                             float(step), 
                             format=number_format, 
-                            key=f"input_{feature}"
+                            key=f"input_{feature}_{v}"
                         )
     return values
 

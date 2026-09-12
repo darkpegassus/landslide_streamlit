@@ -58,6 +58,9 @@ if "current_display_prob" not in st.session_state:
 if "latest_live" not in st.session_state:
     st.session_state.latest_live = {}
 
+if "input_version" not in st.session_state:
+    st.session_state.input_version = 0
+
 def toggle_theme() -> None:
     st.session_state.dark_mode = not st.session_state.dark_mode
 
@@ -89,13 +92,32 @@ try:
 except Exception as error:
     st.error(f"The saved model could not be loaded: {error}")
     st.stop()
-
+def handle_reset_to_live():
+    """
+    Callback that executes BEFORE widgets are drawn.
+    Safely resets all widget keys in session_state to real-time live telemetry.
+    """
+    live_df = get_24h_telemetry(st.session_state.selected_station)
+    live_latest = live_df.iloc[-1].to_dict()
+    
+    # 1. Overwrite session state keys cleanly before widgets instantiate
+    for feat, val in live_latest.items():
+        k = "input_lat" if feat == "Latitude" else ("input_lon" if feat == "Longitude" else f"input_{feat}")
+        st.session_state[k] = float(val) if isinstance(val, (int, float)) else val
+        
+    # 2. Reset model display probability to live baseline
+    clean_live = {k: v for k, v in live_latest.items() if k in INPUT_COLUMNS}
+    p, _ = predict(loaded_model, clean_live)
+    st.session_state.current_display_prob = p
+    
+    # 3. Clear simulation run history
+    st.session_state.sim_history = []
 # --- Main Container: Controls & GIS Map ---
 with st.container(border=True, key="current-parameters"):
     st.markdown('<div class="section-title">Monitoring & Simulation Controls</div>', unsafe_allow_html=True)
     st.caption(f"📡 Real-Time Satellite Telemetry Active &middot; Monitoring Station: **{st.session_state.selected_station}**")
 
-    # 1. Fetch live 24h telemetry (always uses Open-Meteo live satellite feeds)
+    # Fetch live telemetry for active station
     live_df_24h = get_24h_telemetry(st.session_state.selected_station)
     latest_live = live_df_24h.iloc[-1].to_dict()
     st.session_state.latest_live = latest_live
@@ -109,27 +131,18 @@ with st.container(border=True, key="current-parameters"):
             dark, 
             current_risk_prob=st.session_state.current_display_prob
         )
+        # When user clicks a pin: increment version counter to refresh sliders to new station
         if clicked_site != st.session_state.selected_station:
             st.session_state.selected_station = clicked_site
-            
-            # Immediately synchronize slider keys in session state with live data
-            new_telemetry = get_24h_telemetry(clicked_site)
-            new_latest = new_telemetry.iloc[-1].to_dict()
-            for feat, val in new_latest.items():
-                k = "input_lat" if feat == "Latitude" else ("input_lon" if feat == "Longitude" else f"input_{feat}")
-                st.session_state[k] = float(val) if isinstance(val, (int, float)) else val
-                
-            # Recalculate prediction gauge for the newly clicked station immediately
-            clean_new = {k: v for k, v in new_latest.items() if k in INPUT_COLUMNS}
-            p, _ = predict(loaded_model, clean_new)
-            st.session_state.current_display_prob = p
+            st.session_state.input_version += 1   # <--- Instant safe reset to new station
             st.rerun()
 
     with in_col:
+        # Sliders auto-initialize from latest_live using current input_version
         values = collect_inputs(defaults=latest_live)
         values["Effective_Rainfall_mm"] = float(values.get("Rainfall_3Day", 0) * values.get("Vegetation_Cover", 0.5))
 
-        # Robust simulation check with tolerance to prevent rounding false-positives
+        # Simulation check
         is_sim = any(
             abs(float(values[k]) - float(latest_live[k])) > 1.0 
             for k in ["Slope_Angle", "Rainfall_3Day", "Elevation_m", "Soil_Erosion_Rate"]
@@ -144,13 +157,9 @@ with st.container(border=True, key="current-parameters"):
         predict_clicked = btn_c1.button("Predict landslide risk", key="predict", use_container_width=True)
         reset_clicked = btn_c2.button("Reset to Live", key="reset_live", use_container_width=True)
 
+        # CLEAN RESET: Increment version counter and rerun (NO session_state loop!)
         if reset_clicked:
-            for feat, val in latest_live.items():
-                k = "input_lat" if feat == "Latitude" else ("input_lon" if feat == "Longitude" else f"input_{feat}")
-                st.session_state[k] = float(val) if isinstance(val, (int, float)) else val
-            clean_live = {k: v for k, v in latest_live.items() if k in INPUT_COLUMNS}
-            p, _ = predict(loaded_model, clean_live)
-            st.session_state.current_display_prob = p
+            st.session_state.input_version += 1   # <--- Instant safe reset to live
             st.session_state.sim_history = []
             st.rerun()
 
